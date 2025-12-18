@@ -1,0 +1,195 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: blockscout-config
+  namespace: besu-network
+  labels:
+    app: blockscout
+data:
+  NETWORK: "Besu Network"
+  SUBNETWORK: "Mainnet"
+  COIN: "Besu"
+  ETHEREUM_JSONRPC_VARIANT: "besu"
+  ETHEREUM_JSONRPC_HTTP_URL: "http://besu-validator-rpc:8545"
+  ETHEREUM_JSONRPC_WS_URL: "ws://besu-validator-rpc:8546"
+  ETHEREUM_JSONRPC_TRACE_URL: "http://besu-validator-rpc:8545"
+  DATABASE_URL: "postgresql://blockscout:PASSWORD@blockscout-postgres:5432/blockscout"
+  CHAIN_ID: "1947"
+  LOGO: "/images/blockscout_logo.svg"
+  LOGO_FOOTER: "/images/blockscout_logo.svg"
+  HEART_BEAT_TIMEOUT: "30"
+  HEART_COMMAND: "systemctl restart explorer"
+  BLOCK_TRANSFORMER: "base"
+  INDEXER_DISABLE_PENDING_TRANSACTIONS_FETCHER: "false"
+  INDEXER_DISABLE_INTERNAL_TRANSACTIONS_FETCHER: "false"
+  MIX_ENV: "prod"
+  BLOCKSCOUT_PROTOCOL: "http"
+  PORT: "4000"
+  DISABLE_EXCHANGE_RATES: "true"
+  POOL_SIZE: "50"
+  POOL_SIZE_API: "10"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: blockscout
+  namespace: besu-network
+  labels:
+    app: blockscout
+spec:
+  type: NodePort
+  selector:
+    app: blockscout
+  ports:
+    - port: 4000
+      targetPort: 4000
+      nodePort: 30400
+      name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blockscout
+  namespace: besu-network
+  labels:
+    app: blockscout
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blockscout
+  template:
+    metadata:
+      labels:
+        app: blockscout
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.35
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z blockscoutpostgres 5432; do
+                echo "Waiting for PostgreSQL..."
+                sleep 2
+              done
+        - name: wait-for-redis
+          image: busybox:1.35
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z blockscout-redis 6379; do
+                echo "Waiting for Redis..."
+                sleep 2
+              done
+        - name: wait-for-rpc
+          image: busybox:1.35
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z besu-validator-rpc 8545; do
+                echo "Waiting for Besu RPC..."
+                sleep 5
+              done
+      containers:
+        - name: blockscout
+          image: blockscout/blockscout:5.3.3
+          command: ["sh", "-c", "bin/blockscout eval \"Elixir.Explorer.ReleaseTasks.create_and_migrate()\" && bin/blockscout start"]
+          env:
+            - name: ECTO_USE_SSL
+              value: "false"
+            - name: NETWORK
+              valueFrom:
+                configMapKeyRef:
+                  name: blockscout-config
+                  key: NETWORK
+            - name: SUBNETWORK
+              valueFrom:
+                configMapKeyRef:
+                  name: blockscout-config
+                  key: SUBNETWORK
+            - name: COIN
+              valueFrom:
+                configMapKeyRef:
+                  name: blockscout-config
+                  key: COIN
+            - name: ETHEREUM_JSONRPC_VARIANT
+              valueFrom:
+                configMapKeyRef:
+                  name: blockscout-config
+                  key: ETHEREUM_JSONRPC_VARIANT
+            - name: ETHEREUM_JSONRPC_HTTP_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: blockscout-config
+                  key: ETHEREUM_JSONRPC_HTTP_URL
+            - name: ETHEREUM_JSONRPC_WS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: blockscout-config
+                  key: ETHEREUM_JSONRPC_WS_URL
+            - name: ETHEREUM_JSONRPC_TRACE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: blockscout-config
+                  key: ETHEREUM_JSONRPC_TRACE_URL
+            - name: DATABASE_URL
+              value: "postgresql://blockscout:simpleblockspass123@blockscoutpostgres:5432/blockscout"
+            - name: SECRET_KEY_BASE
+              valueFrom:
+                secretKeyRef:
+                  name: blockscout-secrets
+                  key: secret-key-base
+            - name: CHAIN_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: blockscout-config
+                  key: CHAIN_ID
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: blockscout-config
+                  key: PORT
+            - name: MIX_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: blockscout-config
+                  key: MIX_ENV
+            - name: DISABLE_EXCHANGE_RATES
+              valueFrom:
+                configMapKeyRef:
+                  name: blockscout-config
+                  key: DISABLE_EXCHANGE_RATES
+            - name: POOL_SIZE
+              valueFrom:
+                configMapKeyRef:
+                  name: blockscout-config
+                  key: POOL_SIZE
+          ports:
+            - containerPort: 4000
+              name: http
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 4000
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 4000
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5

@@ -1,0 +1,13 @@
+# Besu Network Permissioning Configuration
+# This file controls who can deploy smart contracts on the network
+
+# Accounts allowed to deploy smart contracts
+# Anyone can send transactions, but only these accounts can deploy contracts
+accounts-allowlist = [
+"0x04bc04b47c389c299eff0e5b07ee3b704a2608d3",
+ "0x78025d217fbffd240ebecb9f8b13412c4ae8ab84",
+ "0xf51e33303543f7c6cd9d975ed3fce3938717fa50"
+]
+
+# Node permissioning (optional - can restrict which nodes can join)
+# nodes-allowlist = []

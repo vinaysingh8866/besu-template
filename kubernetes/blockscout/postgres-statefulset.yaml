@@ -1,0 +1,89 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: blockscoutpostgres
+  namespace: besu-network
+  labels:
+    app: blockscoutpostgres
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: blockscoutpostgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: blockscoutpostgres
+  namespace: besu-network
+  labels:
+    app: blockscoutpostgres
+spec:
+  serviceName: blockscoutpostgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blockscoutpostgres
+  template:
+    metadata:
+      labels:
+        app: blockscoutpostgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:14-alpine
+          env:
+            - name: POSTGRES_DB
+              value: "blockscout"
+            - name: POSTGRES_USER
+              value: "blockscout"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: blockscout-secrets
+                  key: postgres-password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432
+              name: postgres
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - pg_isready -U blockscout
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - pg_isready -U blockscout
+            initialDelaySeconds: 5
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: hostpath
+        resources:
+          requests:
+            storage: 50Gi

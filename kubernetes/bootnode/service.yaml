@@ -1,0 +1,27 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: besu-bootnode
+  namespace: besu-network
+  labels:
+    app: besu-bootnode
+    network: Besu
+spec:
+  type: ClusterIP
+  clusterIP: None  # Headless service for StatefulSet
+  selector:
+    app: besu-bootnode
+  ports:
+    - name: discovery
+      port: 30303
+      targetPort: 30303
+      protocol: UDP
+    - name: rlpx
+      port: 30303
+      targetPort: 30303
+      protocol: TCP
+    - name: metrics
+      port: 9545
+      targetPort: 9545
+      protocol: TCP

@@ -1,0 +1,14 @@
+{
+  "network": "Besu Network",
+  "chainId": 1947,
+  "contractAddress": "0xA24810CFe94BEB16a54ca6114Ea465a5fA7A51D5",
+  "deployerAddress": "0x680EA4C8996C0a31D963466e28137e785E630F35",
+  "deploymentBlock": null,
+  "deploymentTx": "0xccc968169dedba722762ffa6eb2c0e644e20ee8e6d1ac114c43fcca285608184",
+  "allowedDeployers": [
+    "0x680ea4c8996c0a31d963466e28137e785e630f35",
+    "0x52731e5928d1fa39f7d62174245ad37baf3766a3",
+    "0xa2feee1291caecd1d7f8bd07949aa2d5ef4a84c8"
+  ],
+  "timestamp": "2025-10-26T02:37:05.959Z"
+}

@@ -1,0 +1,7 @@
+[
+  "enode://BOOTNODE_PUBKEY@besu-bootnode-0.besu-bootnode.besu-network.svc.cluster.local:30303",
+  "enode://VALIDATOR0_PUBKEY@besu-validator-0.besu-validator.besu-network.svc.cluster.local:30303",
+  "enode://VALIDATOR1_PUBKEY@besu-validator-1.besu-validator.besu-network.svc.cluster.local:30303",
+  "enode://VALIDATOR2_PUBKEY@besu-validator-2.besu-validator.besu-network.svc.cluster.local:30303",
+  "enode://VALIDATOR3_PUBKEY@besu-validator-3.besu-validator.besu-network.svc.cluster.local:30303"
+]

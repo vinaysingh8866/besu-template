@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: besu-rpc
+  namespace: besu-network
+  labels:
+    app: besu-rpc
+    network: Besu
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: besu-rpc
+  template:
+    metadata:
+      labels:
+        app: besu-rpc
+        network: Besu
+    spec:
+      initContainers:
+        - name: init-genesis
+          image: hyperledger/besu:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo "Cleaning old database..."
+              rm -rf /data/database /data/caches
+              echo "Initializing genesis block..."
+              cp /config/genesis.json /data/genesis.json
+              cp /secrets/key /data/key
+              cp /secrets/key.pub /data/key.pub
+              cp /config/permissioning-config.toml /data/permissioning-config.toml
+              cp /config/static-nodes.json /data/static-nodes.json
+              echo "Copied static-nodes.json for peer discovery"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /config
+            - name: keys
+              mountPath: /secrets
+      containers:
+        - name: besu
+          image: hyperledger/besu:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - --data-path=/data
+            - --genesis-file=/data/genesis.json
+            - --node-private-key-file=/data/key
+            - --rpc-http-enabled=true
+            - --rpc-http-api=ETH,NET,WEB3,TXPOOL,DEBUG,TRACE
+            - --rpc-http-host=0.0.0.0
+            - --rpc-http-port=8545
+            - --rpc-http-cors-origins=*
+            - --rpc-ws-enabled=true
+            - --rpc-ws-api=ETH,NET,WEB3
+            - --rpc-ws-host=0.0.0.0
+            - --rpc-ws-port=8546
+            - --p2p-enabled=true
+            - --p2p-host=0.0.0.0
+            - --p2p-port=30303
+            - --metrics-enabled=true
+            - --metrics-host=0.0.0.0
+            - --metrics-port=9545
+            - --host-allowlist=*
+            - --min-gas-price=0
+            - --tx-pool-price-bump=0
+            - --sync-min-peers=1
+            - --bootnodes=enode://1c0f908790411fe8439efc93678c3565ade435b4fea3c3f6da285893ff3d1adab827d04884f3b40dcfc74719efde8a8cbe18dcb33738450bdc4bd85f977f833f@10.1.0.56:30303
+          ports:
+            - containerPort: 8545
+              name: http-rpc
+              protocol: TCP
+            - containerPort: 8546
+              name: ws-rpc
+              protocol: TCP
+            - containerPort: 30303
+              name: rlpx
+              protocol: TCP
+            - containerPort: 30303
+              name: discovery
+              protocol: UDP
+            - containerPort: 9545
+              name: metrics
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /config
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "2Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+      volumes:
+        - name: config
+          configMap:
+            name: besu-rpc-config
+        - name: keys
+          secret:
+            secretName: besu-rpc-keys
+        - name: data
+          persistentVolumeClaim:
+            claimName: besu-rpc-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: besu-rpc-data
+  namespace: besu-network
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: hostpath
+  resources:
+    requests:
+      storage: 100Gi

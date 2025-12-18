@@ -1,0 +1,14 @@
+---
+# StorageClass for local development
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-storage
+provisioner: rancher.io/local-path
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete
+---
+# Note: In production, use cloud provider's StorageClass
+# For DigitalOcean: do-block-storage
+# For AWS: gp3
+# For GCP: pd-ssd

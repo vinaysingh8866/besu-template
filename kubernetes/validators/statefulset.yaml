@@ -1,0 +1,133 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: besu-validator
+  namespace: besu-network
+  labels:
+    app: besu-validator
+    network: Besu
+spec:
+  serviceName: besu-validator
+  replicas: 4
+  selector:
+    matchLabels:
+      app: besu-validator
+  template:
+    metadata:
+      labels:
+        app: besu-validator
+        network: Besu
+    spec:
+      initContainers:
+        - name: init-genesis
+          image: hyperledger/besu:latest
+          command:
+            - sh
+            - -c
+            - |
+              VALIDATOR_NUM=$(echo $HOSTNAME | grep -o '[0-9]*$')
+              echo "Initializing validator-${VALIDATOR_NUM}..."
+
+              if [ ! -f /data/database/METADATA.json ]; then
+                echo "Initializing genesis block..."
+                cp /config/genesis.json /data/genesis.json
+                cp /secrets/validator-${VALIDATOR_NUM}/key /data/key
+                cp /secrets/validator-${VALIDATOR_NUM}/key.pub /data/key.pub
+              else
+                echo "Genesis already initialized, skipping..."
+              fi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /config
+            - name: keys-0
+              mountPath: /secrets/validator-0
+            - name: keys-1
+              mountPath: /secrets/validator-1
+            - name: keys-2
+              mountPath: /secrets/validator-2
+            - name: keys-3
+              mountPath: /secrets/validator-3
+      containers:
+        - name: besu
+          image: hyperledger/besu:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          args:
+            - --data-path=/data
+            - --genesis-file=/data/genesis.json
+            - --node-private-key-file=/data/key
+            - --rpc-http-enabled=false
+            - --p2p-enabled=true
+            - --p2p-host=0.0.0.0
+            - --p2p-port=30303
+            - --metrics-enabled=true
+            - --metrics-host=0.0.0.0
+            - --metrics-port=9545
+            - --host-allowlist=*
+            - --min-gas-price=0
+            - --tx-pool-price-bump=0
+          ports:
+            - containerPort: 30303
+              name: discovery
+              protocol: UDP
+            - containerPort: 30303
+              name: rlpx
+              protocol: TCP
+            - containerPort: 9545
+              name: metrics
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /config
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "2Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: 9545
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: 9545
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: besu-validator-config
+        - name: keys-0
+          secret:
+            secretName: besu-validator-0-keys
+        - name: keys-1
+          secret:
+            secretName: besu-validator-1-keys
+        - name: keys-2
+          secret:
+            secretName: besu-validator-2-keys
+        - name: keys-3
+          secret:
+            secretName: besu-validator-3-keys
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: local-storage
+        resources:
+          requests:
+            storage: 50Gi

@@ -1,0 +1,38 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: Besu-network
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      # RPC HTTP endpoint
+      - containerPort: 30545
+        hostPort: 8545
+        protocol: TCP
+      # RPC WebSocket endpoint
+      - containerPort: 30546
+        hostPort: 8546
+        protocol: TCP
+      # BlockScout Explorer
+      - containerPort: 30400
+        hostPort: 4000
+        protocol: TCP
+      # Grafana Dashboard
+      - containerPort: 30300
+        hostPort: 3000
+        protocol: TCP
+      # Prometheus
+      - containerPort: 30900
+        hostPort: 9090
+        protocol: TCP
+  - role: worker
+  - role: worker
+  - role: worker
+# Enable feature gates for better performance
+featureGates:
+  "EphemeralContainers": true

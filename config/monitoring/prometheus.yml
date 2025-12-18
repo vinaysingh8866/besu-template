@@ -1,0 +1,56 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    network: 'Besu'
+    chain_id: '1947'
+
+scrape_configs:
+  # Bootnode metrics
+  - job_name: 'besu-bootnode'
+    static_configs:
+      - targets:
+          - 'besu-bootnode-0.besu-bootnode.besu-network.svc.cluster.local:9545'
+        labels:
+          node_type: 'bootnode'
+          network: 'Besu'
+
+  # Validator metrics
+  - job_name: 'besu-validators'
+    static_configs:
+      - targets:
+          - 'besu-validator-0.besu-validator.besu-network.svc.cluster.local:9545'
+          - 'besu-validator-1.besu-validator.besu-network.svc.cluster.local:9545'
+          - 'besu-validator-2.besu-validator.besu-network.svc.cluster.local:9545'
+          - 'besu-validator-3.besu-validator.besu-network.svc.cluster.local:9545'
+        labels:
+          node_type: 'validator'
+          network: 'Besu'
+
+  # RPC node metrics
+  - job_name: 'besu-rpc'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - besu-network
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: besu-rpc
+      - source_labels: [__meta_kubernetes_pod_ip]
+        action: replace
+        target_label: __address__
+        replacement: '$1:9545'
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: pod_name
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        action: keep
+        regex: 'besu_.*|ethereum_.*'
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

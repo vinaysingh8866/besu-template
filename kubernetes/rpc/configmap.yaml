@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: besu-rpc-config
+  namespace: besu-network
+  labels:
+    app: besu-rpc
+    network: Besu
+data:
+  genesis.json: |
+    {
+      "config": {
+        "chainId": 1947,
+        "berlinBlock": 0,
+        "londonBlock": 0,
+        "qbft": {
+          "epochlength": 30000,
+          "blockperiodseconds": 2,
+          "requesttimeoutseconds": 10
+        }
+      },
+      "nonce": "0x0",
+      "timestamp": "0x0",
+      "gasLimit": "0x989680",
+      "difficulty": "0x1",
+      "mixHash": "0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365",
+      "coinbase": "0x0000000000000000000000000000000000000000",
+      "alloc": {
+        "0x0000000000000000000000000000000000000000": {
+          "balance": "0x0"
+        }
+      },
+      "extraData": "0xf87aa00000000000000000000000000000000000000000000000000000000000000000f854941fb0b967d992272f4e642f06fc729f81ae69474394d79fc9e961be2f9aa9e05e3d79eb042ac6451e5794bb9fa9f616573442f0d984b50738204dbf60b108943e989dd78caed60a0ad70386a617d5ae52eada23c080c0",
+      "number": "0x0",
+      "gasUsed": "0x0",
+      "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "baseFeePerGas": "0x0"
+    }
+  permissioning-config.toml: |
+    # Besu Network Permissioning Configuration
+    # This file controls who can deploy smart contracts on the network
+
+    # Accounts allowed to deploy smart contracts
+    # Anyone can send transactions, but only these accounts can deploy contracts
+    accounts-allowlist = [
+    "0x04bc04b47c389c299eff0e5b07ee3b704a2608d3",
+    "0x78025d217fbffd240ebecb9f8b13412c4ae8ab84",
+    "0xf51e33303543f7c6cd9d975ed3fce3938717fa50"
+    ]
+
+    # Node permissioning (optional - can restrict which nodes can join)
+    # nodes-allowlist = []
+  static-nodes.json: |
+    [
+      "enode://e27f4ddcd6bcbf6ca21af745b0529f3011ca1296b55e4cc0a9d5a770aba6575c889144991d7945eb472fb3ef7e440ee33bfccb4ed0f0e58a10df27afb4152356@10.1.0.70:30303",
+      "enode://b0216038051ff301be2fb30b9019076b5b983e58ba50cdac09f2325bc1db46fb4d56d628b9eac2852f572a6f16272f5c72ab00489c970fa6013c0c51f965c31b@10.1.0.68:30303",
+      "enode://d26a0a7a8deb5697c3fd42eed4d3bbb2e3830b2d9b9a620420efad2379a01bf49cfa158509f6956942314e66405ace2c2a07aaca7013227bf5416ccd335b0777@10.1.0.67:30303",
+      "enode://602bb2410f76087da6c690b7259c1f4700de74ab2a7dff3a55c69049d2d789433710917a78b2f7cd2efe7e55302429e77927195421872f9e4ba3f225d5808b7b@10.1.0.69:30303"
+    ]

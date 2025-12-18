@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: besu-bootnode
+  namespace: besu-network
+  labels:
+    app: besu-bootnode
+    network: Besu
+spec:
+  serviceName: besu-bootnode
+  replicas: 1
+  selector:
+    matchLabels:
+      app: besu-bootnode
+  template:
+    metadata:
+      labels:
+        app: besu-bootnode
+        network: Besu
+    spec:
+      initContainers:
+        - name: init-genesis
+          image: hyperledger/besu:latest
+          command:
+            - sh
+            - -c
+            - |
+              if [ ! -f /data/database/METADATA.json ]; then
+                echo "Initializing genesis block..."
+                cp /config/genesis.json /data/genesis.json
+                cp /secrets/key /data/key
+                cp /secrets/key.pub /data/key.pub
+              else
+                echo "Genesis already initialized, skipping..."
+              fi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /config
+            - name: keys
+              mountPath: /secrets
+      containers:
+        - name: besu
+          image: hyperledger/besu:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - --data-path=/data
+            - --genesis-file=/data/genesis.json
+            - --node-private-key-file=/data/key
+            - --rpc-http-enabled=false
+            - --p2p-enabled=true
+            - --p2p-host=0.0.0.0
+            - --p2p-port=30303
+            - --metrics-enabled=true
+            - --metrics-host=0.0.0.0
+            - --metrics-port=9545
+            - --host-allowlist=*
+            - --min-gas-price=0
+            - --tx-pool-price-bump=0
+          ports:
+            - containerPort: 30303
+              name: discovery
+              protocol: UDP
+            - containerPort: 30303
+              name: rlpx
+              protocol: TCP
+            - containerPort: 9545
+              name: metrics
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /config
+            - name: keys
+              mountPath: /secrets
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: 9545
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: 9545
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: besu-bootnode-config
+        - name: keys
+          secret:
+            secretName: besu-bootnode-keys
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: local-storage
+        resources:
+          requests:
+            storage: 20Gi
