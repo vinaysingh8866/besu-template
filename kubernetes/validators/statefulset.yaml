@@ -8,6 +8,7 @@ metadata:
     network: Besu
 spec:
   serviceName: besu-validator
+  podManagementPolicy: Parallel
   replicas: 4
   selector:
     matchLabels:
@@ -20,7 +21,7 @@ spec:
     spec:
       initContainers:
         - name: init-genesis
-          image: hyperledger/besu:latest
+          image: hyperledger/besu:26.5.0
           command:
             - sh
             - -c
@@ -36,6 +37,8 @@ spec:
               else
                 echo "Genesis already initialized, skipping..."
               fi
+              cp /config/static-nodes.json /data/static-nodes.json
+              echo "Copied static-nodes.json for peer discovery"
           volumeMounts:
             - name: data
               mountPath: /data
@@ -51,20 +54,25 @@ spec:
               mountPath: /secrets/validator-3
       containers:
         - name: besu
-          image: hyperledger/besu:latest
+          image: hyperledger/besu:26.5.0
           imagePullPolicy: IfNotPresent
           env:
             - name: POD_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           args:
             - --data-path=/data
             - --genesis-file=/data/genesis.json
             - --node-private-key-file=/data/key
             - --rpc-http-enabled=false
             - --p2p-enabled=true
-            - --p2p-host=0.0.0.0
+            - --p2p-interface=0.0.0.0
+            - --p2p-host=$(POD_IP)
             - --p2p-port=30303
             - --metrics-enabled=true
             - --metrics-host=0.0.0.0
@@ -72,6 +80,9 @@ spec:
             - --host-allowlist=*
             - --min-gas-price=0
             - --tx-pool-price-bump=0
+            - --sync-min-peers=1
+            - --Xdns-enabled=true
+            - --Xdns-update-enabled=true
           ports:
             - containerPort: 30303
               name: discovery
@@ -95,21 +106,19 @@ spec:
               cpu: "2000m"
               memory: "4Gi"
           livenessProbe:
-            httpGet:
-              path: /liveness
-              port: 9545
+            tcpSocket:
+              port: 30303
             initialDelaySeconds: 60
             periodSeconds: 30
           readinessProbe:
-            httpGet:
-              path: /readiness
-              port: 9545
+            tcpSocket:
+              port: 30303
             initialDelaySeconds: 30
             periodSeconds: 10
       volumes:
         - name: config
           configMap:
-            name: besu-validator-config
+            name: besu-config
         - name: keys-0
           secret:
             secretName: besu-validator-0-keys

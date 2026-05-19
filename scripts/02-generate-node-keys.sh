@@ -18,7 +18,7 @@ echo ""
 mkdir -p ${KEYS_DIR}/{bootnode,validator-{0..3},rpc,admin}
 
 echo "Pulling Besu Docker image for key generation..."
-docker pull hyperledger/besu:latest
+docker pull hyperledger/besu:26.5.0
 
 echo ""
 echo "Generating keys for nodes..."
@@ -33,7 +33,7 @@ generate_key() {
 
     docker run --rm \
         -v "$(pwd)/${key_dir}:/data" \
-        hyperledger/besu:latest \
+        hyperledger/besu:26.5.0 \
         --data-path=/data \
         public-key export --to=/data/key.pub \
         >/dev/null 2>&1
@@ -68,7 +68,7 @@ for i in {1..3}; do
     # Create a temporary key file for Besu
     docker run --rm \
         -v "$(pwd)/${KEYS_DIR}/admin:/data" \
-        hyperledger/besu:latest \
+        hyperledger/besu:26.5.0 \
         --data-path=/data/temp${i} \
         --node-private-key-file=/data/admin-${i}.key \
         public-key export-address --to=/data/admin-${i}.address \
@@ -114,7 +114,7 @@ VALIDATOR_ADDRESSES=""
 for i in {0..3}; do
     docker run --rm \
         -v "$(pwd)/${KEYS_DIR}/validator-${i}:/data" \
-        hyperledger/besu:latest \
+        hyperledger/besu:26.5.0 \
         --data-path=/data \
         public-key export-address --to=/data/address \
         >/dev/null 2>&1
@@ -146,11 +146,26 @@ SEALS="c0"  # Empty seals
 
 EXTRA_DATA="0x${VANITY}${LENGTH_BYTES}${VALIDATOR_LIST}${ROUND}${SEALS}"
 
-# Update genesis.json
-jq --arg extraData "$EXTRA_DATA" '.extraData = $extraData' ${CONFIG_DIR}/genesis.json > ${CONFIG_DIR}/genesis.json.tmp
+# Update genesis.json: extraData (validators) + alloc (pre-fund admin accounts as contract deployers)
+ADMIN_BALANCE="0x200000000000000000000000000000000000000000000000000000000000000"
+ADMIN_1=$(cat ${KEYS_DIR}/admin/admin-1.address)
+ADMIN_2=$(cat ${KEYS_DIR}/admin/admin-2.address)
+ADMIN_3=$(cat ${KEYS_DIR}/admin/admin-3.address)
+
+jq \
+    --arg extraData "$EXTRA_DATA" \
+    --arg balance "$ADMIN_BALANCE" \
+    --arg a1 "$ADMIN_1" \
+    --arg a2 "$ADMIN_2" \
+    --arg a3 "$ADMIN_3" \
+    '.extraData = $extraData
+     | .alloc[$a1] = {balance: $balance}
+     | .alloc[$a2] = {balance: $balance}
+     | .alloc[$a3] = {balance: $balance}' \
+    ${CONFIG_DIR}/genesis.json > ${CONFIG_DIR}/genesis.json.tmp
 mv ${CONFIG_DIR}/genesis.json.tmp ${CONFIG_DIR}/genesis.json
 
-echo "✓ genesis.json updated with validator addresses"
+echo "✓ genesis.json updated with validator addresses + admin alloc"
 
 echo ""
 echo "Updating permissioning config with admin accounts..."

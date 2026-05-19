@@ -1,0 +1,13 @@
+{
+  "network": "besu-local",
+  "chainId": 1947,
+  "deployer": "0xFE3B557E8Fb62b89F4916B721be55cEb828dBd73",
+  "addresses": {
+    "Kanon": "0x42699A7612A82f1d9C36148af9C77354759b210b",
+    "DIDRegistry": "0x2F632b08EcE7E9DcA0fCff1F91c1D5Bc245440Eb",
+    "SchemaRegistry": "0x91227A9377f70670237Ed667Ad5D9017D1Bae688",
+    "CredentialDefinitionRegistry": "0x44BdcDBCf35Ea2d20B62514B6A164D03a07D93f2",
+    "RevocationRegistry": "0xcaf51F50C6bcc3EEab2C40e8d0fBD523E86B6e37"
+  },
+  "deployedAt": "2026-05-19T14:16:30.363Z"
+}

@@ -47,6 +47,19 @@ else
 fi
 
 echo ""
+echo "Step 2b: Creating shared config ConfigMaps from canonical files..."
+kubectl create configmap besu-config \
+    --from-file=genesis.json=config/besu/genesis.json \
+    --from-file=static-nodes.json=config/besu/static-nodes.json \
+    -n ${NAMESPACE} \
+    --dry-run=client -o yaml | kubectl apply -f -
+kubectl create configmap besu-rpc-config \
+    --from-file=permissioning-config.toml=config/besu/permissioning-config.toml \
+    -n ${NAMESPACE} \
+    --dry-run=client -o yaml | kubectl apply -f -
+echo "✓ besu-config and besu-rpc-config ConfigMaps created/updated"
+
+echo ""
 echo "Step 3: Updating manifests for Docker Desktop storage..."
 
 # Create temporary directory for modified manifests
@@ -158,15 +171,59 @@ echo "  Consensus: QBFT"
 echo "  Block Time: 2 seconds"
 echo "  Gas Price: 0 (FREE)"
 echo ""
-echo "Testing RPC endpoint..."
-sleep 5
-curl -X POST http://localhost:8545 \
-  -H "Content-Type: application/json" \
-  --data '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' \
-  2>/dev/null | jq . || echo "  (RPC endpoint will be available shortly)"
+echo "Step 12: Port-forwarding RPC and verifying it responds..."
+# NodePort exposes RPC on :30545; port-forward to 8545 for tooling convenience.
+kubectl port-forward -n ${NAMESPACE} svc/besu-rpc-internal 8545:8545 >/tmp/besu-pf.log 2>&1 &
+PF_PID=$!
+trap "kill ${PF_PID} 2>/dev/null || true" EXIT
+
+# Wait up to 60s for the RPC to return a chainId
+RPC_OK=0
+for i in $(seq 1 60); do
+    CHAIN_ID=$(curl -sS -X POST http://localhost:8545 \
+        -H "Content-Type: application/json" \
+        --data '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' 2>/dev/null \
+        | jq -r '.result' 2>/dev/null)
+    if [ "$CHAIN_ID" = "0x79b" ]; then
+        echo "✓ RPC responding (chainId=1947)"
+        RPC_OK=1
+        break
+    fi
+    sleep 1
+done
+if [ "$RPC_OK" != "1" ]; then
+    echo "✗ RPC did not respond in time. Aborting contract deploy."
+    exit 1
+fi
+
+echo ""
+echo "Step 13: Deploying Kanon contract to the Besu network..."
+set +e
+pushd kanon_contracts >/dev/null
+if [ ! -d node_modules ]; then
+    echo "  Installing kanon_contracts dependencies (first run)..."
+    yarn install --frozen-lockfile
+fi
+BESU_LOCAL_RPC_URL=http://localhost:8545 npx hardhat run scripts/deploy-kanon.ts --network besu-local
+DEPLOY_RC=$?
+popd >/dev/null
+set -e
+
+if [ "$DEPLOY_RC" != "0" ]; then
+    echo "✗ Kanon deployment failed"
+    exit 1
+fi
+
 echo ""
 echo "Admin Accounts:"
 echo "  Check: keys/admin/ADMIN_ACCOUNTS.txt"
+echo ""
+echo "Kanon deployment record:"
+echo "  kanon_contracts/deployments/1947.json"
+echo ""
+echo "Port-forward will be stopped when this script exits."
+echo "To re-enable http://localhost:8545:"
+echo "  kubectl port-forward -n ${NAMESPACE} svc/besu-rpc-internal 8545:8545"
 echo ""
 echo "Useful commands:"
 echo "  View logs: ./scripts/logs.sh"

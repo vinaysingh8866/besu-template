@@ -19,17 +19,20 @@ spec:
     spec:
       initContainers:
         - name: init-genesis
-          image: hyperledger/besu:latest
+          image: hyperledger/besu:26.5.0
           command:
             - sh
             - -c
             - |
-              echo "Cleaning old database..."
-              rm -rf /data/database /data/caches
-              echo "Initializing genesis block..."
-              cp /config/genesis.json /data/genesis.json
-              cp /secrets/key /data/key
-              cp /secrets/key.pub /data/key.pub
+              if [ ! -f /data/database/METADATA.json ]; then
+                echo "Initializing genesis block..."
+                cp /config/genesis.json /data/genesis.json
+                cp /secrets/key /data/key
+                cp /secrets/key.pub /data/key.pub
+              else
+                echo "Genesis already initialized, skipping..."
+              fi
+              # Always refresh config files (permissioning + peers) since they may change
               cp /config/permissioning-config.toml /data/permissioning-config.toml
               cp /config/static-nodes.json /data/static-nodes.json
               echo "Copied static-nodes.json for peer discovery"
@@ -42,8 +45,13 @@ spec:
               mountPath: /secrets
       containers:
         - name: besu
-          image: hyperledger/besu:latest
+          image: hyperledger/besu:26.5.0
           imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           args:
             - --data-path=/data
             - --genesis-file=/data/genesis.json
@@ -58,7 +66,8 @@ spec:
             - --rpc-ws-host=0.0.0.0
             - --rpc-ws-port=8546
             - --p2p-enabled=true
-            - --p2p-host=0.0.0.0
+            - --p2p-interface=0.0.0.0
+            - --p2p-host=$(POD_IP)
             - --p2p-port=30303
             - --metrics-enabled=true
             - --metrics-host=0.0.0.0
@@ -67,7 +76,8 @@ spec:
             - --min-gas-price=0
             - --tx-pool-price-bump=0
             - --sync-min-peers=1
-            - --bootnodes=enode://1c0f908790411fe8439efc93678c3565ade435b4fea3c3f6da285893ff3d1adab827d04884f3b40dcfc74719efde8a8cbe18dcb33738450bdc4bd85f977f833f@10.1.0.56:30303
+            - --Xdns-enabled=true
+            - --Xdns-update-enabled=true
           ports:
             - containerPort: 8545
               name: http-rpc
@@ -98,8 +108,12 @@ spec:
               memory: "4Gi"
       volumes:
         - name: config
-          configMap:
-            name: besu-rpc-config
+          projected:
+            sources:
+              - configMap:
+                  name: besu-config
+              - configMap:
+                  name: besu-rpc-config
         - name: keys
           secret:
             secretName: besu-rpc-keys

@@ -1,0 +1,7 @@
+[
+  "enode://0x1c0f908790411fe8439efc93678c3565ade435b4fea3c3f6da285893ff3d1adab827d04884f3b40dcfc74719efde8a8cbe18dcb33738450bdc4bd85f977f833f@besu-bootnode-0.besu-bootnode.besu-network.svc.cluster.local:30303",
+  "enode://0xe27f4ddcd6bcbf6ca21af745b0529f3011ca1296b55e4cc0a9d5a770aba6575c889144991d7945eb472fb3ef7e440ee33bfccb4ed0f0e58a10df27afb4152356@besu-validator-0.besu-validator.besu-network.svc.cluster.local:30303",
+  "enode://0xb0216038051ff301be2fb30b9019076b5b983e58ba50cdac09f2325bc1db46fb4d56d628b9eac2852f572a6f16272f5c72ab00489c970fa6013c0c51f965c31b@besu-validator-1.besu-validator.besu-network.svc.cluster.local:30303",
+  "enode://0xd26a0a7a8deb5697c3fd42eed4d3bbb2e3830b2d9b9a620420efad2379a01bf49cfa158509f6956942314e66405ace2c2a07aaca7013227bf5416ccd335b0777@besu-validator-2.besu-validator.besu-network.svc.cluster.local:30303",
+  "enode://0x602bb2410f76087da6c690b7259c1f4700de74ab2a7dff3a55c69049d2d789433710917a78b2f7cd2efe7e55302429e77927195421872f9e4ba3f225d5808b7b@besu-validator-3.besu-validator.besu-network.svc.cluster.local:30303"
+]

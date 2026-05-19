@@ -25,6 +25,19 @@ kubectl apply -f kubernetes/storage/local-storage.yaml
 echo "✓ Storage class deployed"
 
 echo ""
+echo "Step 1b: Creating shared config ConfigMaps from canonical files..."
+kubectl create configmap besu-config \
+    --from-file=genesis.json=config/besu/genesis.json \
+    --from-file=static-nodes.json=config/besu/static-nodes.json \
+    -n ${NAMESPACE} \
+    --dry-run=client -o yaml | kubectl apply -f -
+kubectl create configmap besu-rpc-config \
+    --from-file=permissioning-config.toml=config/besu/permissioning-config.toml \
+    -n ${NAMESPACE} \
+    --dry-run=client -o yaml | kubectl apply -f -
+echo "✓ besu-config and besu-rpc-config ConfigMaps created/updated"
+
+echo ""
 echo "Step 2: Deploying bootnode..."
 kubectl apply -f kubernetes/bootnode/
 echo "✓ Bootnode deployed"
